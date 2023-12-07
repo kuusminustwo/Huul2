@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Processing Page</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Items to Process</h1>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Item Number</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Quantity Available</th>
+                    <th>Quantity On Hold</th>
+                    <th>Quantity Sold</th>
+                </tr>
+            </thead>
+            <tbody id="itemTable"></tbody>
+        </table>
+        <button id="processButton" class="btn btn-primary">Process</button>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            function loadItemsToProcess() {
+                $.ajax({
+                    type: "GET",
+                    url: "get_items_to_process.php?_=" + Date.now(),
+                    dataType: "xml",
+                    success: function (data) {
+                        $("#itemTable").empty();
+                        
+                        $(data).find('item').each(function () {
+                            var itemNumber = $(this).find('itemNumber').text();
+                            var name = $(this).find('name').text();
+                            var price = $(this).find('price').text();
+                            var quantityAvailable = $(this).find('quantityAvailable').text();
+                            var quantityOnHold = $(this).find('quantityOnHold').text();
+                            var quantitySold = $(this).find('quantitySold').text();
+
+                            if (parseInt(quantitySold) > 0) {
+                                var row = "<tr>";
+                                row += "<td>" + itemNumber + "</td>";
+                                row += "<td>" + name + "</td>";
+                                row += "<td>$" + price + "</td>";
+                                row += "<td>" + quantityAvailable + "</td>";
+                                row += "<td>" + quantityOnHold + "</td>";
+                                row += "<td>" + quantitySold + "</td>";
+                                row += "</tr>";
+                                $("#itemTable").append(row);
+                            }
+                        });
+                    }
+                });
+            }
+
+            loadItemsToProcess();
+
+            $("#processButton").on("click", function () {
+                $.ajax({
+                    type: "POST",
+                    url: "process_items.php?_=" + Date.now(),
+                    success: function (response) {
+                        if (response.success) {
+                            alert("Items processed successfully.");
+                            loadItemsToProcess();
+                        } else {
+                            alert("Failed to process items. " + response.message);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+
+    <br>
+    <div class="container">
+        <a href="mlogin.htm" class="btn btn-primary">Back</a>
+        <a href="listing.htm" class="btn btn-primary">List Items</a>
+        <a href="logout.php" class="btn btn-danger">Logout</a>
+    </div>
+</body>
+</html>

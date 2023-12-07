@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Buy Products</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            function loadItemCatalog() {
+                $.ajax({
+                    type: "GET",
+                    url: "get_items.php?_=" + Date.now(),
+                    dataType: "xml",
+                    success: function (data) {
+                        $("#itemCatalog").empty();
+                        $(data).find('item').each(function () {
+                            var itemNumber = $(this).find('itemNumber').text();
+                            var name = $(this).find('name').text();
+                            var description = $(this).find('description').text().substring(0, 20);
+                            var price = $(this).find('price').text();
+                            var quantityAvailable = $(this).find('quantityAvailable').text();
+
+                            if (quantityAvailable > 0) {
+                                var row = "<tr>";
+                                row += "<td>" + itemNumber + "</td>";
+                                row += "<td>" + name + "</td>";
+                                row += "<td>" + description + "</td>";
+                                row += "<td>$" + price + "</td>";
+                                row += "<td class='quantityAvailable'>" + quantityAvailable + "</td>";
+                                row += "<td><button class='addToCart btn btn-secondary' data-item='" + itemNumber + "'>Add to Cart</button></td>";
+                                row += "</tr>";
+                                $("#itemCatalog").append(row);
+                            }
+                        });
+                    }
+                });
+            }
+
+            function loadItemsInHold() {
+                $.ajax({
+                    type: "GET",
+                    url: "get_items_in_hold.php?_=" + Date.now(),
+                    dataType: "xml",
+                    success: function (data) {
+                        $("#shoppingCart").empty();
+                        $(data).find('item').each(function () {
+                            var itemNumber = $(this).find('itemNumber').text();
+                            var name = $(this).find('name').text();
+                            var price = parseFloat($(this).find('price').text());
+                            var quantityInHold = parseInt($(this).find('quantityOnHold').text());
+
+                            var newRow = "<tr data-item='" + itemNumber + "'>";
+                            newRow += "<td>" + itemNumber + "</td>";
+                            newRow += "<td>" + name + "</td>";
+                            newRow += "<td class='quantity'>" + quantityInHold + "</td>";
+                            newRow += "<td class='price'>$" + price + "</td>";
+                            newRow += "<td><button class='removeFromCart btn btn-secondary'>Remove</button></td>";
+                            newRow += "</tr>";
+
+                            $("#shoppingCart").append(newRow);
+                        });
+                    }
+                });
+            }
+
+            loadItemsInHold();
+            loadItemCatalog();
+
+            setInterval(function () {
+                loadItemCatalog();
+            }, 10000);
+
+            $(document).on("click", ".addToCart", function () {
+                var itemNumber = $(this).data("item");
+                
+                var quantityAvailable = $(this).closest('tr').find('.quantityAvailable').text();
+
+                if (quantityAvailable > 0) {
+                    $.ajax({
+                        type: "POST",
+                        url: "update_item_availability.php?_=" + Date.now(), 
+                        data: { itemNumber: itemNumber },
+                        dataType: "json",
+                        success: function (response) {
+                            if (response.success) {
+                                if (response.success) {
+                                } else {
+                                    alert(response.message); 
+                                }
+                            } else {
+                                alert("Sorry, this item is not available for sale.");
+                            }
+                            loadItemCatalog();
+                            loadItemsInHold();
+                        }
+                    });
+                } else {
+                    alert("Sorry, this item is not available for sale.");
+                }
+            });
+
+            $(document).on("click", ".removeFromCart", function () {
+                var $cartItem = $(this).closest('tr');
+                var itemNumber = $cartItem.data("item");
+                var quantityToRemove = parseInt($cartItem.find('.quantity').text());
+                
+                $cartItem.remove();
+
+                function updateXMLDocument(itemNumber, quantityToRemove) {
+                    var dataToSend = []; 
+                    var itemData = {
+                            itemNumber: itemNumber,
+                            quantityToRemove: quantityToRemove
+                        };
+
+                    dataToSend.push(itemData);
+                    $.ajax({
+                        type: "POST",
+                        url: "update_xml.php?_=" + Date.now(),
+                        data: {
+                            items: dataToSend 
+                        },
+                        success: function (response) {
+                            loadItemCatalog();
+                            loadItemsInHold();
+                            console.log(response);
+                        },
+                        error: function (error) {
+                            console.error(error);
+                        }
+                    });
+                }
+                updateXMLDocument(itemNumber, quantityToRemove);
+                
+            });
+        
+            $("#confirmPurchase").click(function () {
+                updateXMLDocumentForConfirmPurchase();
+
+                var totalAmount = calculateTotalAmount();
+
+                alert("Your purchase has been confirmed, and the total amount due to pay is $" + totalAmount);
+            });
+
+            $("#cancelPurchase").click(function () {
+                updateXMLDocumentForCancelPurchase();
+            });
+
+            function calculateTotalAmount() {
+                var totalAmount = 0; 
+
+                $("#shoppingCart tr").each(function () {
+                    var quantity = parseInt($(this).find(".quantity").text());
+                    var price = parseInt($(this).find(".price").text().replace("$", ""));
+                    console.log(quantity);
+                    var itemTotal = quantity * price;
+                    totalAmount += itemTotal; 
+                });
+
+                return totalAmount;
+            }
+            
+            function updateXMLDocumentForConfirmPurchase(callback) {
+                var itemNumbers = [];
+                
+                $('#shoppingCart tr').each(function () {
+                    var itemNumber = $(this).data("item");
+                    itemNumbers.push(itemNumber);
+                });
+                
+                var dataToSend = {
+                    itemNumbers: itemNumbers
+                };
+
+                $.ajax({
+                    type: "POST",
+                    url: "update_item_purchasing.php?_=" + Date.now(),
+                    data: dataToSend, 
+                    success: function (data) {
+                        console.log("success");
+                        loadItemCatalog();
+                        loadItemsInHold();
+                    },
+                    error: function (error) {
+                        console.log("error");
+                    }
+                });
+            }
+
+            function updateXMLDocumentForCancelPurchase() {
+                var dataToSend = []; 
+
+                $('#shoppingCart tr').each(function () {
+                    var itemNumber = $(this).data("item");
+                    var quantityToRemove = parseInt($(this).find('.quantity').text());
+
+                    var itemData = {
+                        itemNumber: itemNumber,
+                        quantityToRemove: quantityToRemove
+                    };
+
+                    dataToSend.push(itemData);
+                });
+
+                $.ajax({
+                    type: "POST",
+                    url: "update_xml.php?_=" + Date.now(),
+                    data: {
+                        items: dataToSend 
+                    },
+                    success: function (data) {
+                        console.log("XML document updated for cancellation.");
+                        loadItemCatalog();
+                        loadItemsInHold();
+                    },
+                    error: function (error) {
+                        console.log("error");
+                    }
+                });
+            }
+            $("#logoutButton").click(function () {
+                updateXMLDocumentForCancelPurchase();
+                window.location.href = "logout.php";
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Buy Products</h1>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Item Number</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Price</th>
+                    <th>Quantity Available</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="itemCatalog"></tbody>
+        </table>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Item Number</th>
+                    <th>Name</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="shoppingCart"></tbody>
+        </table>
+
+        <div>
+            <button id="confirmPurchase" class="btn btn-primary">Confirm Purchase</button>
+            <button id="cancelPurchase" class="btn btn-secondary">Cancel Purchase</button>
+        </div>
+
+        <a href="login.htm" class="btn btn-primary">Back</a>
+        <button class="btn btn-danger" id="logoutButton">Logout</button>
+    </div>
+</body>
+</html>
+</html>

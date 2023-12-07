@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Item Listing</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Item Listing</h1>
+        <form action="listing_server.php" method="post">
+            <div class="form-group">
+                <label for="itemName">Item Name:</label>
+                <input type="text" name="itemName" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="unitPrice">Unit Price:</label>
+                <input type="number" name="unitPrice" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="quantityAvailable">Quantity Available:</label>
+                <input type="number" name="quantityAvailable" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea name="description" class="form-control" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">List Item</button>
+        </form>
+        <a href="mlogin.htm" class="btn btn-primary">Back</a>
+        <a href="processing.htm" class="btn btn-primary">Process Sold Items</a>
+        <a href="logout.php" class="btn btn-danger">Logout</a>
+    </div>
+</body>
+</html>
